@@ -52,6 +52,7 @@ from pygeoapi.util import (
 )
 
 from . import APIRequest, API, validate_datetime, pre_load_colls
+from . import APIRequest, API, validate_datetime, pre_load_colls
 
 LOGGER = logging.getLogger(__name__)
 
