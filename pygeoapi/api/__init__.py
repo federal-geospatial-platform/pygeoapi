@@ -43,7 +43,7 @@ Returns content from plugins and sets responses.
 import asyncio
 from collections import OrderedDict
 from copy import deepcopy
-from datetime import datetime
+from datetime import (datetime, timezone)
 from functools import partial
 from gzip import compress
 from http import HTTPStatus
@@ -54,6 +54,7 @@ from typing import Any, Tuple, Union, Optional
 
 from dateutil.parser import parse as dateparse
 import pytz
+import yaml
 
 from pygeoapi import __version__, l10n
 from pygeoapi.linked_data import jsonldify, jsonldify_collection
@@ -218,6 +219,35 @@ def apply_gzip(headers: dict, content: Union[str, bytes]) -> Union[str, bytes]:
             headers.pop('Content-Encoding')
             LOGGER.error(f'Error in compression: {err}')
     return content
+
+
+def pre_load_colls(func):
+    """
+    Decorator that makes sure the loaded collections in memory are update to
+    date.
+
+    :param func: decorated function
+
+    :returns: `func`
+    """
+
+    def inner(*args, **kwargs):
+        cls = args[0]
+
+        if hasattr(cls, 'reload_resources_if_necessary'):
+            # Validate the resources are up to date
+            cls.reload_resources_if_necessary()
+
+        else:
+            cls = args[1]
+
+            if hasattr(cls, 'reload_resources_if_necessary'):
+                # Validate the resources are up to date
+                cls.reload_resources_if_necessary()
+
+        return func(*args, **kwargs)
+
+    return inner
 
 
 class APIRequest:
@@ -682,8 +712,69 @@ class API:
         self.tpl_config = deepcopy(self.config)
         self.tpl_config['server']['url'] = self.base_url
 
+        # Now that basic configuration is read, call the load ressources.
+        # This call enables the api engine to load resources dynamically.
+        # That is, resources which could be coming from other sources than
+        # the yaml file itself. Indeed, the yaml file could be empty of
+        # resources and all read dynamically from somewhere else
+        # (e.g. a database).
+        # That way, it's a little easier to manage a dynamic ensemble of
+        # resoures, especially on pygeoapi distributed environments.
+        self.load_resources()
+
         self.manager = get_manager(self.config)
         LOGGER.info('Process manager plugin loaded')
+
+    def load_resources(self):
+        """
+        Calls on_load_resources and reassigns the resources configuration.
+        """
+
+        # Call on_load_resources sending the current resources configuration.
+        self.config['resources'] = self.on_load_resources(self.config['resources'])  # noqa
+
+        # Copy over for the template config (this is something that got added
+        # after a rebase of pending PR.. to be investigated..)
+        self.tpl_config['resources'] = deepcopy(self.config['resources'])
+
+        # Keep track of UTC date of last load
+        self.last_loaded_resources = datetime.now(timezone.utc)
+
+    def on_load_resources(self, resources):
+        """
+        Overridable function to load (or reload) the available resources
+        dynamically.
+        By default, this function simply returns the resources as-is. This is
+        the original behavior of the API; expecting resources to be
+        already configured correctly per the yaml config file.
+
+        :param resources: the resources as currently configured
+        (self.config['resources'])
+        :returns: the resources dictionary that's available in the API.
+        """
+
+        # By default, return the same resources object, unchanged.
+        return resources
+
+    def on_load_resources_check(self, last_loaded_resources):
+        """
+        Overridable function to check if the resources should be reloaded.
+        As this implementation depends on your messaging broker, by default,
+        pygeoapi doesn't support that and returns False.
+        """
+        return False
+
+    def reload_resources_if_necessary(self):
+        """
+        This function reloads the resources if necessary, by calling
+        'on_load_resources_check' and then calling 'load_resources' if
+        necessary.
+        """
+
+        # If the resources should be reloaded
+        if self.on_load_resources_check(self.last_loaded_resources):
+            # Reload the resources
+            self.load_resources()
 
     @gzip
     @pre_process
@@ -898,6 +989,7 @@ class API:
     @gzip
     @pre_process
     @jsonldify
+    @pre_load_colls
     def describe_collections(self, request: Union[APIRequest, Any],
                              dataset=None) -> Tuple[dict, int, str]:
         """
