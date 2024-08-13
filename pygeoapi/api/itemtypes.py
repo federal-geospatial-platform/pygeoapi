@@ -67,7 +67,7 @@ from pygeoapi.provider.base import (
 from pygeoapi.util import (to_json, filter_dict_by_key_value, str2bool,
                            render_j2_template, get_dataset_formatters)
 
-from . import APIRequest, API, SYSTEM_LOCALE, validate_bbox, validate_datetime
+from . import APIRequest, API, SYSTEM_LOCALE, validate_bbox, validate_datetime, pre_load_colls
 
 LOGGER = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ CONFORMANCE_CLASSES_RECORDS = [
     'http://www.opengis.net/spec/ogcapi-records-1/1.0/conf/html'
 ]
 
-
+@pre_load_colls
 def get_collection_queryables(api: API, request: Union[APIRequest, Any],
                               dataset: str | None = None
                               ) -> Tuple[dict, int, str]:
@@ -232,7 +232,7 @@ def get_collection_queryables(api: API, request: Union[APIRequest, Any],
 
     return headers, HTTPStatus.OK, to_json(queryables, api.pretty_print)
 
-
+@pre_load_colls
 def get_collection_items(
         api: API, request: Union[APIRequest, Any],
         dataset: str | None = None) -> Tuple[dict, int, str]:
@@ -727,7 +727,7 @@ def get_collection_items(
 
     return headers, HTTPStatus.OK, to_json(content, api.pretty_print)
 
-
+@pre_load_colls
 def manage_collection_item(
         api: API, request: APIRequest,
         action: str, dataset: str,
@@ -858,7 +858,7 @@ def manage_collection_item(
 
     return headers, http_status, ''
 
-
+@pre_load_colls
 def get_collection_item(api: API, request: APIRequest,
                         dataset: str, identifier: str
                         ) -> Tuple[dict, int, str]:

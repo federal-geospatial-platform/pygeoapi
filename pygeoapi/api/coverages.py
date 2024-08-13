@@ -53,7 +53,7 @@ from pygeoapi.util import filter_dict_by_key_value, to_json, render_j2_template
 
 from . import (
     APIRequest, API, SYSTEM_LOCALE, validate_bbox, validate_datetime,
-    validate_subset
+    validate_subset, pre_load_colls
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -69,7 +69,7 @@ CONFORMANCE_CLASSES = [
     'http://www.opengis.net/spec/ogcapi-coverages-1/1.0/conf/coverage-datetime'
 ]
 
-
+@pre_load_colls
 def get_collection_coverage(
         api: API, request: APIRequest,
         dataset: str) -> Tuple[dict, int, str]:

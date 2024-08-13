@@ -54,7 +54,7 @@ from pygeoapi.provider.base import (
 )
 from pygeoapi.util import to_json, filter_dict_by_key_value
 
-from . import APIRequest, API, validate_datetime, validate_subset
+from . import APIRequest, API, validate_datetime, validate_subset, pre_load_colls
 
 LOGGER = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ CONFORMANCE_CLASSES = [
 
 DEFAULT_BBOX = [-180, -90, 180, 90]  # CRS84
 
-
+@pre_load_colls
 def get_collection_map(api: API, request: APIRequest,
                        dataset: str, style: str | None = None
                        ) -> Tuple[dict, int, str]:
