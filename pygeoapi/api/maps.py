@@ -51,7 +51,7 @@ from pygeoapi.util import (
     filter_dict_by_key_value, transform_bbox
 )
 
-from . import APIRequest, API, validate_datetime
+from . import APIRequest, API, validate_datetime, pre_load_colls
 
 LOGGER = logging.getLogger(__name__)
 
@@ -63,6 +63,7 @@ CONFORMANCE_CLASSES = [
 DEFAULT_CRS = 'http://www.opengis.net/def/crs/EPSG/0/4326'
 
 
+@pre_load_colls
 def get_collection_map(api: API, request: APIRequest,
                        dataset, style=None) -> Tuple[dict, int, str]:
     """
