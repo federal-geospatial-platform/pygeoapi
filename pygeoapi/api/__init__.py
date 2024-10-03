@@ -712,20 +712,20 @@ class API:
         self.tpl_config = deepcopy(self.config)
         self.tpl_config['server']['url'] = self.base_url
 
-        # Now that basic configuration is read, call the load ressources.
+        # Now that basic configuration is read, call the load_resources function.  # noqa
         # This call enables the api engine to load resources dynamically.
-        # That is, resources which could be coming from other sources than
-        # the yaml file itself. Indeed, the yaml file could be empty of
-        # resources and all read dynamically from somewhere else
-        # (e.g. a database).
-        # That way, it's a little easier to manage a dynamic ensemble of
-        # resoures, especially on pygeoapi distributed environments.
+        # This pattern allows for loading resources coming from another
+        # source (e.g. a database) rather than from the yaml file.
+        # This, along with the @pre_load_colls wrapper also enables management
+        # resources on multiple pygeoapi instances distributed in a
+        # load-balanced environment.
+        self.last_loaded_resources: datetime = datetime.now(timezone.utc)
         self.load_resources()
 
         self.manager = get_manager(self.config)
         LOGGER.info('Process manager plugin loaded')
 
-    def load_resources(self):
+    def load_resources(self) -> None:
         """
         Calls on_load_resources and reassigns the resources configuration.
         """
@@ -734,13 +734,13 @@ class API:
         self.config['resources'] = self.on_load_resources(self.config['resources'])  # noqa
 
         # Copy over for the template config (this is something that got added
-        # after a rebase of pending PR.. to be investigated..)
+        # after a rebase of pending PR.. to be investigated if still necessary to do so..)
         self.tpl_config['resources'] = deepcopy(self.config['resources'])
 
-        # Keep track of UTC date of last load
+        # Keep track of UTC date of last time resources were loaded
         self.last_loaded_resources = datetime.now(timezone.utc)
 
-    def on_load_resources(self, resources):
+    def on_load_resources(self, resources: dict) -> dict:
         """
         Overridable function to load (or reload) the available resources
         dynamically.
@@ -756,19 +756,22 @@ class API:
         # By default, return the same resources object, unchanged.
         return resources
 
-    def on_load_resources_check(self, last_loaded_resources):
+    def on_load_resources_check(self, last_loaded_resources: datetime) -> bool:
         """
         Overridable function to check if the resources should be reloaded.
-        As this implementation depends on your messaging broker, by default,
-        pygeoapi doesn't support that and returns False.
+        This implementation depends on your environment or messaging broker.
+        Natively, pygeoapi doesn't support that and resources are never
+        re-loaded.
         """
+
+        # By default, return False to not reload the resources.
         return False
 
-    def reload_resources_if_necessary(self):
+    def reload_resources_if_necessary(self) -> None:
         """
-        This function reloads the resources if necessary, by calling
-        'on_load_resources_check' and then calling 'load_resources' if
-        necessary.
+        Checks if the resources should be reloaded, by calling overridable
+        function 'on_load_resources_check' and then calling 'load_resources'
+        when necessary.
         """
 
         # If the resources should be reloaded
